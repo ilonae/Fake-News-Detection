@@ -7,6 +7,7 @@ With that being stated, the aim of this project is (in the first step) to quickl
 While various studies exist, mostly focusing on the capacities of CNN and LSTM architectures, more recent examples highlight the benefits of using BERT models, or - more specifically - their newer variants such as DeBERTa or RoBERTa (moreover, BERT-FND or FakeBERT).
 
 # Section 3: Data
+Commonly used datasets namedly are FakeNewsNet (PolitiFact, GossipCop), LIAR (PolitiFact-based) and FEVER (Fact Extraction and Verification). They can be 
 
 # Section 4: Architecture
 
@@ -30,3 +31,5 @@ Provide guidelines for contributing. Use links (`[text](url)`) for references.
 ## Example:
 - Fork the repository.
 - Submit a pull request following the [contribution guidelines](CONTRIBUTING.md).
+
+# Section 11: References
