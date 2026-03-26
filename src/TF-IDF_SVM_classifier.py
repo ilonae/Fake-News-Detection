@@ -16,7 +16,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
-from helper import preprocess
 
 
 parser = argparse.ArgumentParser()
@@ -32,7 +31,7 @@ logging.basicConfig(filename="message.log",
 # =============================================================================
 
 logging.info("Downloading dataset via kagglehub...")
-#LIAR dataset
+#FakeNewsNet
 path = kagglehub.dataset_download("mahdimashayekhi/fake-news-detection-dataset")
 df = pd.read_csv(path+'/fake_news_dataset.csv')
 
@@ -129,7 +128,7 @@ top_real.plot(kind='barh', ax=axes[1], title='Top REAL features', color='steelbl
 plt.suptitle('TF-IDF + SVM — Feature Importance', fontsize=12)
 plt.tight_layout()
 plt.savefig('outputs/svm_top_features.png', dpi=150,bbox_inches='tight')
-logging.info("Confusion matrix saved to outputs/svm_top_features.png")
+logging.info("Top features (REAL and FAKE) to outputs/svm_top_features.png")
 if args.plot:
     plt.show()
 plt.close()
