@@ -54,12 +54,12 @@ This project implements and compares different news text classification architec
 
 ## TF-IDF  and SVM
 
-(\`src/TF-IDF_SVM_classifierbaseline\_svm.py\`) - a bag-of-words pipeline.
+`src/TF-IDF_SVM_classifier.py\` - a bag-of-words pipeline.
 Text is vectorized using TF-IDF (unigrams + bigrams) and classified with a linear SVM. Fast to train, fully interpretable via coefficient weights, and establishes the performance floor for comparison.
 
 ## BERT
 
-(\`src/BERT_classifier.py\`)  - Executing fine-tuning of a pre-trained transformer.
+`src/BERT_classifier.py\`  - Executing fine-tuning of a pre-trained transformer.
 BERT's bidirectional attention mechanism captures global context across the entire input, giving it a structural advantage over the SVM (and LSTMs generally) on longer, nuanced articles. Fine-tuned for 3 epochs using AdamW with a linear warmup schedule.
 
 # Section 7: Usage
@@ -72,6 +72,7 @@ cd Fake-News-Detection
 python -m venv .venv && source .venv/bin/activate 
 pip install -r requirements.txt
 ```
+
 ## Device support
 
 Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU — no configuration needed
@@ -79,6 +80,7 @@ Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU �
 ## Running the models
 
 Each model is self-contained. All scripts download the dataset automatically via `kagglehub` on first run.
+
 ```
 # TF-IDF + SVM
 python src/baseline_svm.py
@@ -92,6 +94,7 @@ python src/baseline_bert.py --epochs 4 --batch_size 8   # use epochs and batch_s
 ## Output
 
 All scripts write to `outputs/`:
+
 ```
 outputs/
 ├── ..._confusion_matrix.png
@@ -110,8 +113,7 @@ Contributions are welcome, especially around additional model architectures or d
 1. Fork the repo
 2. Create feature branch: `git checkout -b feature/your-feature`
 3. Follow the structure: `logging` over `print`, plots saved to `outputs/`, `--args` flag for adjustment
-4. Submit a PR for that feature, with a brief description 
-
+4. Submit a PR for that feature, with a brief description
 
 # Section 12: References
 

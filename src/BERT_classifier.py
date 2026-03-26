@@ -22,7 +22,7 @@ parser.add_argument('--plot', action='store_true')
 parser.add_argument('--epochs',     type=int,   default=3)
 parser.add_argument('--batch_size', type=int,   default=16)
 parser.add_argument('--max_len',    type=int,   default=256)
-parser.add_argument('--lr',         type=float, default=2e-5)
+parser.add_argument('--lr',         type=float, default=1e-5)
 args = parser.parse_args()
 
 logging.basicConfig(filename="message.log",
@@ -53,14 +53,15 @@ df = pd.read_csv(path+'/fake_news_dataset.csv')
 logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
 
-# Encoding labels to integers
-label_idx = {label: idx for idx, label in enumerate(sorted(df['label'].unique()))}
-idx_label = {v: k for k, v in label_idx.items()}
+# FIX 1: Hardcoded binary mapping — avoids ArrowStringArray sorting
+# inconsistencies across pandas/pyarrow versions
+label_idx = {'fake': 0, 'real': 1}
+idx_label  = {0: 'fake', 1: 'real'}
 df['label_idx'] = df['label'].map(label_idx)
 logging.info(f"Label mapping: {label_idx}")
 
 # BERT handles its own tokenisation so we skip manual preprocessing
-df['text_input'] = df['title'].fillna('') + ' [SEP] ' + df['text'].fillna('')
+df['text_input'] = df['title'].fillna('') + ' ' + df['text'].fillna('')
 
 X_train, X_test, y_train, y_test = train_test_split(
     df['text_input'].to_numpy(dtype=str),
@@ -155,7 +156,7 @@ optimizer = AdamW(optimizer_grouped_parameters, lr=args.lr)
 # Warmup over 6% of total avoids destabilising pretrained weights early
 
 total_steps  = len(train_loader) * args.epochs
-warmup_steps = int(0.06 * total_steps)
+warmup_steps = int(0.1 * total_steps)
 scheduler = get_linear_schedule_with_warmup(
     optimizer,
     num_warmup_steps=warmup_steps,
