@@ -1,6 +1,6 @@
 # Section 1: Introduction
 
-With the currently ongoing increasing spread of information, both of verified and unverified ressources, differentiating in between fake and real news becomes a pressing issue. Especially different socio-economical groups perceive and deal with ressources differently, which can quickly lead to misinformation, if not even conspiracy theory culture.
+With the currently ongoing increasing spread of information, both of verified and unverified resources, differentiating in between fake and real news becomes a pressing issue. Especially different socio-economical groups perceive and deal with resources differently, which can quickly lead to misinformation, if not even conspiracy theory culture.
 
 With that being stated, the aim of this project is (in the first step) to quickly implement an out-of-the-box Machine Learning approach which correctly classifies textual data into real and fake news.
 
@@ -11,7 +11,7 @@ Generally, one can differentiate into the following subsections:
 
 ## Transformer-Based Models (BERT, RoBERTa, DeBERTa, etc.)
 
-These pre-trained models yield best results as they have gained a contextual understanding - enabling differentiation between sarcasm, bias and misleading information. While they can be finetuned to more specific use cases, they can become computationally expensive for real-time applications.
+These pre-trained models yield best results as they have gained a contextual understanding - enabling differentiation between sarcasm, bias and misleading information. While they can be fine-tuned to more specific use cases, they can become computationally expensive for real-time applications.
 
 | Model     | Key Feature                                                    | Best For                                                     |
 | :-------- | :------------------------------------------------------------- | :----------------------------------------------------------- |
@@ -40,17 +40,64 @@ Hence, they're not preferred in the usage of fake news detection.
 
 Commonly used datasets namedly are FakeNewsNet (PolitiFact, GossipCop), LIAR (PolitiFact-based) and FEVER (Fact Extraction and Verification). They can be accessed via their respective official repositories and Kaggle mirrors, and are compatible with the HuggingFace `datasets` library for direct loading.
 
-| Dataset                                                                                    | Description                                                                                                                       |
-| :----------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
-| [FakeNewsNet](https://www.kaggle.com/datasets/mdepak/fakenewsnet)                             | PolitiFact + GossipCop articles with social engagement metadata. Unique because it includes sharing/comment signals.              |
-| [PolitiFact Fact Check](https://www.kaggle.com/datasets/rmisra/politifact-fact-check-dataset) | Fact-checking outlet covering political statements. Labels range across 6 levels.                                                |
-| [GossipCop](https://www.kaggle.com/datasets/akshaynarayananb/gossipcop)                       | Entertainment news fact-checker. Useful for capturing sensationalist writing patterns that differ from political misinformation. |
-| [LIAR](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset)                        | PolitiFact statements with 6-class labels, plus speaker metadata. Self-contained, benchmarked, rich enough for analysis.        |
-| [FEVER](https://fever.ai/dataset/fever.html)                                                  | Wikipedia-derived claims labeled. Requires evidence retrieval, so it's more of an NLI task than classification.                   |
+| Dataset                                                                                    | Description                                                                                                                      |
+| :----------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
+| [FakeNewsNet](https://www.kaggle.com/datasets/mdepak/fakenewsnet)                             | PolitiFact + GossipCop articles with social engagement metadata. Unique because it includes sharing/comment signals.             |
+| [PolitiFact Fact Check](https://www.kaggle.com/datasets/rmisra/politifact-fact-check-dataset) | Fact-checking outlet covering political statements. Labels range across 6 levels.                                                |
+| [GossipCop](https://www.kaggle.com/datasets/akshaynarayananb/gossipcop)                       | Entertainment news fact-checker. Useful for capturing sensationalist writing patterns that differ from political misinformation. |
+| [LIAR](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset)                        | PolitiFact statements with 6-class labels, plus speaker metadata. Self-contained, benchmarked, rich enough for analysis.         |
+| [FEVER](https://fever.ai/dataset/fever.html)                                                  | Wikipedia-derived claims labeled. Requires evidence retrieval, so it's more of an NLI task than classification.                  |
 
 # Section 6: Architecture
 
+This project implements and compares different news text classification architectures of increasing complexity, each representing a distinct paradigm in NLP:
+
+## TF-IDF  and SVM
+
+(\`src/TF-IDF_SVM_classifierbaseline\_svm.py\`) - a bag-of-words pipeline.
+Text is vectorized using TF-IDF (unigrams + bigrams) and classified with a linear SVM. Fast to train, fully interpretable via coefficient weights, and establishes the performance floor for comparison.
+
+## BERT
+
+(\`src/BERT_classifier.py\`)  - Executing fine-tuning of a pre-trained transformer.
+BERT's bidirectional attention mechanism captures global context across the entire input, giving it a structural advantage over the SVM (and LSTMs generally) on longer, nuanced articles. Fine-tuned for 3 epochs using AdamW with a linear warmup schedule.
+
 # Section 7: Usage
+
+## Installation
+
+```
+git clone https://github.com/ilonae/Fake-News-Detection.git 
+cd Fake-News-Detection
+python -m venv .venv && source .venv/bin/activate 
+pip install -r requirements.txt
+```
+## Device support
+
+Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU — no configuration needed
+
+## Running the models
+
+Each model is self-contained. All scripts download the dataset automatically via `kagglehub` on first run.
+```
+# TF-IDF + SVM
+python src/baseline_svm.py
+python src/baseline_svm.py --plot          # show plots interactively, optional arg
+
+# BERT-base-uncased
+python src/baseline_bert.py
+python src/baseline_bert.py --epochs 4 --batch_size 8   # use epochs and batch_soze args
+```
+
+## Output
+
+All scripts write to `outputs/`:
+```
+outputs/
+├── ..._confusion_matrix.png
+├── ..._training_curves.png
+└── bert_finetuned/          - saved weights and tokenizer
+```
 
 # Section 8: Results
 
@@ -58,11 +105,18 @@ Commonly used datasets namedly are FakeNewsNet (PolitiFact, GossipCop), LIAR (Po
 
 # Section 11: Contributing
 
-Provide guidelines for contributing. Use links (`[text](url)`) for references.
+Contributions are welcome, especially around additional model architectures or dataset integrations.
 
-## Example:
+1. Fork the repo
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Follow the structure: `logging` over `print`, plots saved to `outputs/`, `--args` flag for adjustment
+4. Submit a PR for that feature, with a brief description 
 
-- Fork the repository.
-- Submit a pull request following the [contribution guidelines](CONTRIBUTING.md).
 
 # Section 12: References
+
+- Devlin, J. et al. (2019). *BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.* NAACL. https://arxiv.org/abs/1810.04805
+- Liu, Y. et al. (2019). *RoBERTa: A Robustly Optimized BERT Pretraining Approach.* https://arxiv.org/abs/1907.11692
+- Shu, K. et al. (2018). *FakeNewsNet: A Data Repository with News Content, Social Context and Spatialtemporal Information.* https://arxiv.org/abs/1809.01286
+- Wang, W. Y. (2017). *"Liar, Liar Pants on Fire": A New Benchmark Dataset for Fake News Detection.* ACL. https://arxiv.org/abs/1705.00648
+- Thorne, J. et al. (2018). *FEVER: a Large-scale Dataset for Fact Extraction and VERification.* NAACL. https://arxiv.org/abs/1803.05355
