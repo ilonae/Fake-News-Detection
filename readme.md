@@ -54,13 +54,41 @@ This project implements and compares different news text classification architec
 
 ## TF-IDF  and SVM
 
-`src/TF-IDF_SVM_classifier.py\` - a bag-of-words pipeline.
+`src/TF-IDF_SVM_classifier.py` - a bag-of-words pipeline.
 Text is vectorized using TF-IDF (unigrams + bigrams) and classified with a linear SVM. Fast to train, fully interpretable via coefficient weights, and establishes the performance floor for comparison.
 
 ## BERT
 
-`src/BERT_classifier.py\`  - Executing fine-tuning of a pre-trained transformer.
+`src/BERT_classifier.py`  - Executing fine-tuning of a pre-trained transformer.
 BERT's bidirectional attention mechanism captures global context across the entire input, giving it a structural advantage over the SVM (and LSTMs generally) on longer, nuanced articles. Fine-tuned for 3 epochs using AdamW with a linear warmup schedule.
+
+| Component       | Detail                                       |
+| :-------------- | :------------------------------------------- |
+| Base model      | bert-base-uncased (109M parameters)          |
+| Max sequence    | 256 tokens                                   |
+| Optimiser       | AdamW, lr=1e-5, weight decay=0.01            |
+| Schedule        | Linear warmup (10%) + linear decay           |
+| Classifier head | Linear(768 num_classes), random init  |
+
+## Fake-BERT
+
+`src/Fake-BERT_classifier.py` - An extension of BERT that adds a CNN branch to the transformer encoder. Rather than relying on the `[CLS]` token representation, FakeBERT also passes the full token sequence through a CNN block (kernel size 4) that detects local 4-gram patterns — sensationalist phrases, emotional triggers, hedging language — which BERT's global attention may distribute across positions and underweight. The CNN output and the `[CLS]` embedding are concatenated before classification, giving the model both global context and local pattern signal.
+ 
+```
+BERT encoder
+    ├── [CLS] token  - global context vector  (768d)
+    └── all tokens   -  CNN(kernel=4) -> MaxPool -> local pattern vector  (128d)
+Concat([CLS], CNN_out)  -> Dropout  ->  Linear  ->  num_classes
+```
+ 
+| Component       | Detail                                              |
+| :-------------- | :-------------------------------------------------- |
+| Base model      | bert-base-uncased                                   |
+| CNN kernel      | size 4 (4-gram patterns), 128 filters               |
+| Optimiser       | AdamW with separate LRs: 1e-5 (BERT), 1e-4 (CNN + head) |
+| Schedule        | Linear warmup (10%) + linear decay                  |
+| Classifier head | Linear(768 + 128 num_classes)                     |
+ 
 
 # Section 7: Usage
 
@@ -89,6 +117,10 @@ python src/baseline_svm.py --plot          # show plots interactively, optional 
 # BERT-base-uncased
 python src/baseline_bert.py
 python src/baseline_bert.py --epochs 4 --batch_size 8   # use epochs and batch_soze args
+
+# FakeBERT
+python src/Fake-BERT_classifier.py
+python src/Fake-BERT_classifier.py --epochs 4 --batch_size 8 --num_filters 128
 ```
 
 ## Output
@@ -122,3 +154,4 @@ Contributions are welcome, especially around additional model architectures or d
 - Shu, K. et al. (2018). *FakeNewsNet: A Data Repository with News Content, Social Context and Spatialtemporal Information.* https://arxiv.org/abs/1809.01286
 - Wang, W. Y. (2017). *"Liar, Liar Pants on Fire": A New Benchmark Dataset for Fake News Detection.* ACL. https://arxiv.org/abs/1705.00648
 - Thorne, J. et al. (2018). *FEVER: a Large-scale Dataset for Fact Extraction and VERification.* NAACL. https://arxiv.org/abs/1803.05355
+- Rohera, D. et al. (2022). *FakeBERT: Fake News Detection in Social Media with a BERT-based Deep Learning Approach.* Multimedia Tools and Applications. https://doi.org/10.1007/s11042-022-13183-y
