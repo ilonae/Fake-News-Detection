@@ -31,9 +31,9 @@ logging.basicConfig(filename="message.log",
 # =============================================================================
 
 logging.info("Downloading dataset via kagglehub...")
-#FakeNewsNet
-path = kagglehub.dataset_download("mahdimashayekhi/fake-news-detection-dataset")
-df = pd.read_csv(path+'/fake_news_dataset.csv')
+#WELFake dataset: 10k news articles labelled 'fake' or 'real' (balanced) with title and text
+path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
+df = pd.read_csv(path + '/WELFake_Dataset.csv')
 
 logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
