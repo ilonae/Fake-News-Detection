@@ -1,6 +1,7 @@
 """
 Smoke tests validate imports and basic utilities
 """
+
 import importlib
 
 
@@ -70,6 +71,7 @@ def test_transformers_tokenizer_loads():
     except OSError:
         # Offline / no HuggingFace cache — skip rather than fail
         import pytest
+
         pytest.skip("HuggingFace model not cached; skipping tokenizer test in offline CI")
 
 
