@@ -1,5 +1,4 @@
 import os
-import re
 import logging
 import argparse
 import torch
@@ -51,10 +50,10 @@ path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
 df   = pd.read_csv(path + '/WELFake_Dataset.csv')
 df   = df.rename(columns={'Unnamed: 0': 'id'})
 df['label'] = df['label'].map({0: 'fake', 1: 'real'})
+df = df.dropna(subset=['title', 'text', 'label']).reset_index(drop=True)
 
 logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
-df = df.dropna(subset=['title', 'text', 'label']).reset_index(drop=True)
 
 # FIX 1: Hardcoded binary mapping — avoids ArrowStringArray sorting
 # inconsistencies across pandas/pyarrow versions

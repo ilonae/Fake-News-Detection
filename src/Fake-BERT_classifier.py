@@ -13,16 +13,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
-from transformers import (
-    BertTokenizerFast,
-    BertModel,
-    get_linear_schedule_with_warmup
-)
+from transformers import ( BertTokenizerFast, BertModel, get_linear_schedule_with_warmup)
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import (
-    accuracy_score, f1_score,
-    classification_report, confusion_matrix
-)
+from sklearn.metrics import (accuracy_score, f1_score, classification_report, confusion_matrix)
 
 logging.basicConfig(filename="message.log",
                     format='%(asctime)s: %(levelname)s: %(message)s',
@@ -57,9 +50,13 @@ KERNEL_SIZE = 4   # 4-gram local patterns via CNN - as described in the FakeBERT
 # =============================================================================
 
 logging.info("Downloading dataset via kagglehub...")
-path = kagglehub.dataset_download("mahdimashayekhi/fake-news-detection-dataset")
-df   = pd.read_csv(path + '/fake_news_dataset.csv')
-logging.info(f"Dataset loaded: {df.shape[0]} rows")
+path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
+df   = pd.read_csv(path + '/WELFake_Dataset.csv')
+df   = df.rename(columns={'Unnamed: 0': 'id'})
+df['label'] = df['label'].map({0: 'fake', 1: 'real'})
+df = df.dropna(subset=['title', 'text', 'label']).reset_index(drop=True)
+
+logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
 
 # FIX 1: Hardcoded binary mapping — avoids ArrowStringArray sorting
@@ -215,7 +212,7 @@ logging.info(f"Total steps: {total_steps}, Warmup steps: {warmup_steps}")
 # 6. TRAINING
 # =============================================================================
 
-criterion = nn.CrossEntropyLoss()
+criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
 def run_epoch(loader, train: bool):
     model.train() if train else model.eval()
