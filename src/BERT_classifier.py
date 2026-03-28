@@ -1,5 +1,4 @@
 import os
-import re
 import logging
 import argparse
 import torch
@@ -46,9 +45,12 @@ MODEL_NAME = 'bert-base-uncased'
 # =============================================================================
 
 logging.info("Downloading dataset via kagglehub...")
-#FakeNewsNet
-path = kagglehub.dataset_download("mahdimashayekhi/fake-news-detection-dataset")
-df = pd.read_csv(path+'/fake_news_dataset.csv')
+
+path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
+df   = pd.read_csv(path + '/WELFake_Dataset.csv')
+df   = df.rename(columns={'Unnamed: 0': 'id'})
+df['label'] = df['label'].map({0: 'fake', 1: 'real'})
+df = df.dropna(subset=['title', 'text', 'label']).reset_index(drop=True)
 
 logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
@@ -131,10 +133,13 @@ test_loader = DataLoader(
 model = BertForSequenceClassification.from_pretrained(
     MODEL_NAME,
     ignore_mismatched_sizes=True,
-    num_labels=len(label_idx)
+    num_labels=len(label_idx),
+    hidden_dropout_prob=0.1,          # dropout on all hidden layers
+    attention_probs_dropout_prob=0.1  # dropout on attention weights
 )
 model.to(DEVICE)
 logging.info(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
 # AdamW = standard choice for BERT fine-tuning, excluding bias and LayerNorm weights from decay (no progress)
 no_decay = ['bias', 'LayerNorm.weight']
@@ -186,10 +191,10 @@ def run_epoch(loader, train: bool):
             outputs = model(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                token_type_ids=token_type_ids,
-                labels=labels
+                token_type_ids=token_type_ids
             )
-            loss = outputs.loss
+            loss = criterion(outputs.logits, labels)
+
 
             if train:
                 optimizer.zero_grad()

@@ -1,5 +1,4 @@
 
-import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import kagglehub
 import matplotlib.pyplot as plt
@@ -7,8 +6,9 @@ import seaborn as sns
 import nltk
 import logging
 import re
+import os
 import argparse
-
+import joblib
 
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
@@ -22,6 +22,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--plot', action='store_true')
 args = parser.parse_args()
 
+os.makedirs('outputs', exist_ok=True)
 logging.basicConfig(filename="message.log",
                     format='%(asctime)s: %(levelname)s: %(message)s',
                     level=logging.INFO)
@@ -31,9 +32,9 @@ logging.basicConfig(filename="message.log",
 # =============================================================================
 
 logging.info("Downloading dataset via kagglehub...")
-#FakeNewsNet
-path = kagglehub.dataset_download("mahdimashayekhi/fake-news-detection-dataset")
-df = pd.read_csv(path+'/fake_news_dataset.csv')
+#WELFake dataset: 10k news articles labelled 'fake' or 'real' (balanced) with title and text
+path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
+df = pd.read_csv(path + '/WELFake_Dataset.csv')
 
 logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
 logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
@@ -42,15 +43,10 @@ logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
 # 2. PREPROCESSING
 # =============================================================================
 
-logging.debug(df.isnull().sum())
-logging.debug(df['source'].mode())
+df = df.dropna(subset=['title', 'text', 'label']).reset_index(drop=True)
+logging.info(f"After dropna: {df.shape[0]} rows remaining")
 
-df.fillna({'source': 'Daily News'}, inplace=True)
-df.fillna({'author': 'Michael Smith'}, inplace=True)
-logging.debug(df.isnull().sum())
-logging.debug(df.duplicated().sum())
-
-nltk.download('stopwords')
+nltk.download('stopwords', quiet=True)
 logging.debug(stopwords.words('english'))
 stop_words = set(stopwords.words('english'))
 
@@ -78,8 +74,9 @@ y = df['label']
 # 4. TRAIN / TEST SPLIT
 # =============================================================================
 
+y_np = y.to_numpy()
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42, stratify=y
+    X, y, test_size=0.2, random_state=42, stratify=y_np
 )
 
 # =============================================================================
@@ -89,6 +86,7 @@ X_train, X_test, y_train, y_test = train_test_split(
 logging.info("Training SVM (kernel=linear, C=1.0)...")
 svm = SVC(kernel='linear', C=1.0, random_state=42)
 svm.fit(X_train, y_train)
+joblib.dump(svm, 'outputs/svm_finetuned/svm_model.pkl')
 
 # =============================================================================
 # 6. PREDICTION & EVALUATION
@@ -104,11 +102,12 @@ logging.info(f"Macro F1 : {f1:.4f}")
 logging.info(f"Classification report:\n{report}")
 
 cm = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots(figsize=(6, 5))
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
             xticklabels=svm.classes_, yticklabels=svm.classes_)
-plt.title('TF-IDF + SVM — Confusion Matrix')
-plt.ylabel('True label')
-plt.xlabel('Predicted label')
+ax.set_title('TF-IDF + SVM — Confusion Matrix')
+ax.set_ylabel('True label')
+ax.set_xlabel('Predicted label')
 plt.tight_layout()
 plt.savefig('outputs/svm_confusion_matrix.png', dpi=150,bbox_inches='tight')
 logging.info("Confusion matrix saved to outputs/svm_confusion_matrix.png")
