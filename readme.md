@@ -107,13 +107,13 @@ outputs/
 All models evaluated on an 80/20 stratified train/test split of WELFake (72k articles).
 Primary metric is macro F1. Inference time measured on the test set.
 
-## Confusion matrices
+| Model        | Accuracy | Macro F1 | Inference time in sec | Samples/sec |
+| :----------- | :------- | :------- | :--------------------- | ----------- |
+| TF-IDF + SVM | 96.14%   | 0.9613   | 127, 22                | 112,5       |
+| BERT.        | 99.56%   | 0.9956   | 301, 29                | 47,5        |
+| FakeBERT     | 99.49%   | 0.9949   | 305, 74                | 46,9        |
 
-| Model        | Accuracy | Macro F1 | Inference time |
-| :----------- | :------- | :------- | :------------- |
-| TF-IDF + SVM | 96.14%   | 0.9613   | —             |
-| BERT.        | 99.56%   | 0.9956   | —             |
-| FakeBERT     | 99.49%   | 0.9949   | —             |
+## Confusion matrices
 
 <p align="center">
   <img src="outputs/svm_confusion_matrix.png" width="30%"/>
@@ -136,6 +136,9 @@ All three models achieve high accuracy on WELFake, reflecting the dataset's rela
 
 **Convergence speed** — FakeBERT's parallel CNN branch accelerates early learning by capturing local n-gram patterns that BERT's attention mechanism
 requires more steps to weight appropriately. This advantage is most visible in epoch 1 of the training curves.
+
+**Inference cost** — SVM is orders of magnitude faster than transformer-based models. For production use cases, this trade-off is significant.
+As inference measurements show, the SVM plus TF-IDF will require 127,22 seconds, where FakeBERT at max will need 305,73 seconds. Similarly, the tradeoff in samples per second show: The SVM can process 112,5 samples, whereas BERT does 47,5 - and FakeBERT 46,9.
 
 # Section 10: Conclusion
 
