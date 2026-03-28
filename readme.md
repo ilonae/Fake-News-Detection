@@ -72,6 +72,7 @@ cd Fake-News-Detection
 python -m venv .venv && source .venv/bin/activate 
 pip install -r requirements.txt
 ```
+
 ## Device support
 
 Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU — no configuration needed
@@ -79,6 +80,7 @@ Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU �
 ## Running the models
 
 Each model is self-contained. All scripts download the dataset automatically via `kagglehub` on first run.
+
 ```
 # TF-IDF + SVM
 python src/baseline_svm.py
@@ -92,6 +94,7 @@ python src/baseline_bert.py --epochs 4 --batch_size 8   # use epochs and batch_s
 ## Output
 
 All scripts write to `outputs/`:
+
 ```
 outputs/
 ├── ..._confusion_matrix.png
@@ -104,14 +107,13 @@ outputs/
 All models evaluated on an 80/20 stratified train/test split of WELFake (72k articles).
 Primary metric is macro F1. Inference time measured on the test set.
 
-
 ## Confusion matrices
 
-| Model               | Accuracy | Macro F1 | Inference time |
-| :------------------ | :------- | :------- | :------------- |
-| TF-IDF + SVM        | 96.14%   | 0.9613   | —              |
-| BERT.               | 99.56%   | 0.9956   | —              |
-| FakeBERT            | 99.49%   | 0.9949   | —              |
+| Model        | Accuracy | Macro F1 | Inference time |
+| :----------- | :------- | :------- | :------------- |
+| TF-IDF + SVM | 96.14%   | 0.9613   | —             |
+| BERT.        | 99.56%   | 0.9956   | —             |
+| FakeBERT     | 99.49%   | 0.9949   | —             |
 
 <p align="center">
   <img src="outputs/svm_confusion_matrix.png" width="30%"/>
@@ -135,7 +137,6 @@ All three models achieve high accuracy on WELFake, reflecting the dataset's rela
 **Convergence speed** — FakeBERT's parallel CNN branch accelerates early learning by capturing local n-gram patterns that BERT's attention mechanism
 requires more steps to weight appropriately. This advantage is most visible in epoch 1 of the training curves.
 
-
 # Section 10: Conclusion
 
 # Section 11: Contributing
@@ -145,8 +146,7 @@ Contributions are welcome, especially around additional model architectures or d
 1. Fork the repo
 2. Create feature branch: `git checkout -b feature/your-feature`
 3. Follow the structure: `logging` over `print`, plots saved to `outputs/`, `--args` flag for adjustment
-4. Submit a PR for that feature, with a brief description 
-
+4. Submit a PR for that feature, with a brief description
 
 # Section 12: References
 
