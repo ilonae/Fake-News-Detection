@@ -101,6 +101,41 @@ outputs/
 
 # Section 8: Results
 
+All models evaluated on an 80/20 stratified train/test split of WELFake (72k articles).
+Primary metric is macro F1. Inference time measured on the test set.
+
+
+## Confusion matrices
+
+| Model               | Accuracy | Macro F1 | Inference time |
+| :------------------ | :------- | :------- | :------------- |
+| TF-IDF + SVM        | 96.14%   | 0.9613   | —              |
+| BERT.               | 99.56%   | 0.9956   | —              |
+| FakeBERT            | 99.49%   | 0.9949   | —              |
+
+<p align="center">
+  <img src="outputs/svm_confusion_matrix.png" width="30%"/>
+  <img src="outputs/bert_confusion_matrix.png" width="30%"/>
+  <img src="outputs/fakebert_confusion_matrix.png" width="30%"/>
+</p>
+
+## Learning curves — BERT vs FakeBERT
+
+<p align="center">
+  <img src="outputs/bert_training_curves.png" width="48%"/>
+  <img src="outputs/fakebert_training_curves.png" width="48%"/>
+</p>
+
+## Discussion
+
+All three models achieve high accuracy on WELFake, reflecting the dataset's relatively clean binary signal. Meaningful differentiation emerges on three axes:
+
+**Complexity vs. accuracy trade-off** — TF-IDF + SVM achieves competitive F1 at a fraction of the compute cost, which is the expected finding from the literature. The transformer models offer no accuracy gain on this dataset but demonstrate substantially different convergence behavior (see learning curves).
+
+**Convergence speed** — FakeBERT's parallel CNN branch accelerates early learning by capturing local n-gram patterns that BERT's attention mechanism
+requires more steps to weight appropriately. This advantage is most visible in epoch 1 of the training curves.
+
+
 # Section 10: Conclusion
 
 # Section 11: Contributing
