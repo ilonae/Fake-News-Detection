@@ -148,16 +148,16 @@ Primary metric is macro F1. Inference time measured on the test set.
 ## Confusion matrices
 
 <p align="center">
-  <img src="outputs/svm_confusion_matrix.png" width="30%"/>
-  <img src="outputs/bert_confusion_matrix.png" width="30%"/>
-  <img src="outputs/fakebert_confusion_matrix.png" width="30%"/>
+  <img src="docs/svm_confusion_matrix.png" width="30%"/>
+  <img src="docs/bert_confusion_matrix.png" width="30%"/>
+  <img src="docs/fakebert_confusion_matrix.png" width="30%"/>
 </p>
 
 ## Learning curves — BERT vs FakeBERT
 
 <p align="center">
-  <img src="outputs/bert_training_curves.png" width="48%"/>
-  <img src="outputs/fakebert_training_curves.png" width="48%"/>
+  <img src="docs/bert_training_curves.png" width="48%"/>
+  <img src="docs/fakebert_training_curves.png" width="48%"/>
 </p>
 
 ## Discussion
