@@ -9,13 +9,15 @@ import matplotlib.pyplot as plt
 import nltk
 import pandas as pd
 import seaborn as sns
-import wandb
+from datasets import load_dataset
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.svm import SVC
+
+import wandb
 
 
 def main() -> None:
@@ -62,29 +64,15 @@ def main() -> None:
         df = df.dropna(subset=["title", "text", "label"]).reset_index(drop=True)
         df["content_raw"] = df["title"].fillna("") + " " + df["text"].fillna("")
     else:
-        path = kagglehub.dataset_download("kesompochy/liar-dataset-for-fake-news-detection")
-        df_train = pd.read_csv(path + "/train.tsv", sep="\t", header=None)
-        df_test = pd.read_csv(path + "/test.tsv", sep="\t", header=None)
-        df_val = pd.read_csv(path + "/valid.tsv", sep="\t", header=None)
-        df = pd.concat([df_train, df_test, df_val], ignore_index=True)
-        df.columns = [
-            "id",
-            "label_raw",
-            "statement",
-            "subject",
-            "speaker",
-            "job",
-            "state",
-            "affiliation",
-            "barely_true",
-            "false",
-            "half_true",
-            "mostly_true",
-            "pants_fire",
-            "context",
-        ]
-        fake_labels = {"false", "pants-fire", "barely-true"}
-        df["label"] = df["label_raw"].apply(lambda x: 0 if str(x).lower() in fake_labels else 1)
+        # LIAR from HuggingFace Hub — no Kaggle consent required
+        # label ints: 0=false, 1=half-true, 2=mostly-true, 3=true, 4=barely-true, 5=pants-fire
+        ds = load_dataset("liar")
+        df = pd.concat(
+            [pd.DataFrame(ds[split]) for split in ["train", "validation", "test"]],
+            ignore_index=True,
+        )
+        fake_label_ids = {0, 4, 5}  # false, barely-true, pants-fire
+        df["label"] = df["label"].apply(lambda x: 0 if x in fake_label_ids else 1)
         df = df.dropna(subset=["statement", "label"]).reset_index(drop=True)
         df["content_raw"] = df["statement"].fillna("")
 
