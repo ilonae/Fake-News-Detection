@@ -38,6 +38,62 @@ Datasets are accessible via Kaggle mirrors and are compatible with the HuggingFa
 | [LIAR](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset)                        | PolitiFact statements with 6-class labels and speaker metadata. Self-contained and benchmarked.   |
 | [FEVER](https://fever.ai/dataset/fever.html)                                                  | Wikipedia-derived claims; requires evidence retrieval — closer to NLI than classification.        |
 
+# Section 4: Preprocessing
+
+Each model requires different preprocessing; the raw text is never shared as-is across pipelines.
+
+## TF-IDF + SVM
+
+Input text (title + body on WELFake; statement + speaker + context on LIAR) is cleaned and normalised before vectorisation:
+
+1. Non-alphabetic characters stripped via regex
+2. Lowercased and tokenised
+3. English stopwords removed (NLTK)
+4. Porter stemming applied per token
+5. Processed tokens joined and passed to `TfidfVectorizer(max_features=10000, ngram_range=(1,2))`
+
+Bigrams are included to capture compound signals such as "breaking news" or "deep state" that carry little weight as unigrams.
+
+## BERT and FakeBERT
+
+No manual preprocessing — the BERT tokenizer handles normalisation, subword splitting, and special token insertion (`[CLS]`, `[SEP]`). Input fields are concatenated with a space separator before tokenisation:
+
+- **WELFake**: `title + " " + text`
+- **LIAR**: `statement + " " + speaker + " " + context`
+
+Sequences are truncated to 256 tokens and padded to uniform length per batch. Labels are mapped to integer indices (`fake → 0`, `real → 1`).
+
+# Section 5: Experimental Setup
+
+## Datasets
+
+| Dataset  | Size       | Split     | Label type                              |
+| :------- | :--------- | :-------- | :-------------------------------------- |
+| WELFake  | ~72k rows  | 80/20     | Binary (0 = fake, 1 = real)             |
+| LIAR     | ~12.8k rows | 80/20    | 6-class, binarised (pants-fire/false/barely-true → fake; half-true/mostly-true/true → real) |
+
+Splits are stratified on the label to preserve class distribution. No validation set is held out separately — early stopping is based on the test split (noted as a limitation in the Discussion).
+
+## Evaluation metrics
+
+- **Primary**: Macro F1 — averages F1 across both classes equally, penalising class-imbalanced predictions
+- **Secondary**: Accuracy, per-class recall (fake / real separately)
+- **Inference**: Wall-clock seconds and samples/sec on the test set (single run, no averaging)
+
+## Hardware
+
+All experiments run on Apple M4 (MPS backend) for transformer models; SVM training is CPU-only. Scripts auto-detect the available device at runtime.
+
+## Hyperparameters
+
+| Parameter     | TF-IDF + SVM        | BERT / FakeBERT                    |
+| :------------ | :------------------ | :--------------------------------- |
+| Epochs        | 10 (SGD passes)     | 10                                 |
+| Batch size    | N/A                 | 16                                 |
+| Learning rate | α = 1e-4 (SGD)      | 1e-5 (BERT layers), 1e-4 (CNN/head) |
+| Max seq len   | N/A                 | 256 tokens                         |
+| Warmup        | N/A                 | 10% of total steps                 |
+
 # Section 6: Architecture
 
 Three architectures of increasing complexity, each representing a distinct NLP paradigm:
@@ -174,9 +230,9 @@ outputs/
   <img src="docs/fakebert_training_curves_LIAR.png" width="32%"/>
 </p>
 
-## Discussion
+# Section 9: Discussion
 
-### WELFake
+## WELFake
 
 All three models achieve strong results on WELFake, reflecting its clean binary signal.
 
@@ -186,7 +242,7 @@ All three models achieve strong results on WELFake, reflecting its clean binary 
 
 **Inference cost** — SVM processes 112.5 samples/sec vs. ~47 for BERT and FakeBERT, a 2.4× throughput advantage that matters significantly in production.
 
-### LIAR
+## LIAR
 
 Performance drops substantially across all models relative to WELFake.
 
@@ -198,7 +254,7 @@ Performance drops substantially across all models relative to WELFake.
 
 **Overfitting vs. plateau** — Both transformer models reach train F1 ~1.0 by epoch 10 while val F1 stalls at ~0.62–0.63 from epoch 2; FakeBERT's val loss diverges more sharply after epoch 5. SVM is stable from epoch 3 but too weak to close the train/val F1 gap. Early stopping at epoch 2–3 is appropriate for both transformer models on LIAR.
 
-### Outlook
+## Outlook
 
 Several directions follow naturally from these results:
 
