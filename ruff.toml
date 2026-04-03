@@ -16,16 +16,6 @@ ignore = [
 [lint.isort]
 known-first-party = ["src"]
 
-[lint.per-file-ignores]
-# Pre-existing issues in src/ — suppress until a dedicated cleanup PR
-"src/*.py" = [
-    "I001",  # import sort order
-    "F401",  # unused imports
-    "W291",  # trailing whitespace
-    "W292",  # no newline at end of file
-    "F821",  # undefined name (known bugs in inference_run.py)
-    "E401",  # multiple imports on one line
-]
 
 [format]
 quote-style = "double"
