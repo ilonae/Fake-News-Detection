@@ -1,122 +1,165 @@
 # Section 1: Introduction
 
-With the currently ongoing increasing spread of information, both of verified and unverified resources, differentiating in between fake and real news becomes a pressing issue. Especially different socio-economical groups perceive and deal with resources differently, which can quickly lead to misinformation, if not even conspiracy theory culture.
-
-With that being stated, the aim of this project is (in the first step) to quickly implement an out-of-the-box Machine Learning approach which correctly classifies textual data into real and fake news.
+The spread of unverified information across socio-economic groups makes fake news detection an increasingly pressing problem. This project implements and compares three text classification approaches — ranging from a classical bag-of-words baseline to fine-tuned transformer models — evaluated across two benchmark datasets.
 
 # Section 2: Literature Review
 
-While various studies exist, mostly focusing on the capacities of CNN and LSTM architectures, more recent examples highlight the benefits of using BERT models, or - more specifically - their newer variants such as DeBERTa or RoBERTa (moreover, BERT-FND or FakeBERT).
-Generally, one can differentiate into the following subsections:
+Recent work has shifted from CNN/LSTM architectures toward transformer-based models, with BERT variants (RoBERTa, DeBERTa, FakeBERT) achieving state-of-the-art results on most benchmarks.
 
-## Transformer-Based Models (BERT, RoBERTa, DeBERTa, etc.)
+## Transformer-Based Models
 
-These pre-trained models yield best results as they have gained a contextual understanding - enabling differentiation between sarcasm, bias and misleading information. While they can be fine-tuned to more specific use cases, they can become computationally expensive for real-time applications.
+Pre-trained transformers capture bidirectional context and can be fine-tuned for fake news classification, though they are computationally expensive at inference time.
 
-| Model     | Key Feature                                                    | Best For                                                     |
-| :-------- | :------------------------------------------------------------- | :----------------------------------------------------------- |
-| BERT      | Baseline transformer, bidirectional context                    | General fake news classification                             |
-| RoBERTa   | More training data, longer sequences                           | Higher accuracy on nuanced text                              |
-| DeBERTa   | Disentangled attention (separates content & position)          | Better at detecting subtle misinformation                    |
-| BERT-FND  | Fine-tuned BERT which uses explainability tools                | Best for platforms needing interpretable fake news detection |
-| Fake-BERT | Combines BERT with parallel CNN blocks (local n-gram patterns) | High accuracy on ambiguity in language                       |
+| Model     | Key Feature                                                    | Best For                                    |
+| :-------- | :------------------------------------------------------------- | :------------------------------------------ |
+| BERT      | Baseline transformer, bidirectional context                    | General fake news classification            |
+| RoBERTa   | More training data, longer sequences                           | Higher accuracy on nuanced text             |
+| DeBERTa   | Disentangled attention (separates content & position)          | Subtle misinformation detection             |
+| BERT-FND  | Fine-tuned BERT with explainability tools                      | Interpretable fake news detection           |
+| Fake-BERT | BERT + parallel CNN blocks for local n-gram patterns           | High accuracy on ambiguous language         |
 
 ## Sequential & Hybrid Models (LSTM, CNN, BiGRU)
 
-Sequential or hybrid models are generally less compute-heavy than transformer models, and effective when training data is limited. Yet, they tend to struggle with long-range dependencies compared to transformers - which can be
-prominent in heavy contextual data. The following can be pointed out:
+Less compute-heavy than transformers, effective on limited data, but struggle with long-range dependencies. CNNs detect local n-gram patterns; LSTMs/GRUs capture sequential structure; hybrids combine both.
 
-* LSTMs/GRUs: Capture sequential dependencies in text (especially temporal patterns in fake news)
-* CNNs: Detect local n-gram patterns (e.g., sensational phrases like "SHOCKING TRUTH!")
-* Hybrids, such as CNN-LSTM, BiGRU-Attention: Combine strengths of both
+## LLMs for Few-Shot & Zero-Shot Detection
 
-## Large Language Models (LLMs) for Few-Shot & Zero-Shot Detection
-
-Using pre-trained LLMs, such as GPT-4, LLaMA, or Mistral have the advantage that they don't require fine-tuning and can be used in a zero-shot approach. Similarly, RAGs can be useful for few-shot learning, as in providing a few labeled examples to guide detection, to then compare with the input.
-Both are easy to use out of the box, but the disadvantage being that false explanations can be resulting, as well as requiring high latency which becomes problematic for real-time analysis.
-Hence, they're not preferred in the usage of fake news detection.
+GPT-4, LLaMA, and similar models require no fine-tuning but suffer from high latency and hallucinated explanations — making them unsuitable for production fake news detection.
 
 # Section 3: Data
 
-Commonly used datasets namedly are FakeNewsNet (PolitiFact, GossipCop), LIAR (PolitiFact-based) and FEVER (Fact Extraction and Verification). They can be accessed via their respective official repositories and Kaggle mirrors, and are compatible with the HuggingFace `datasets` library for direct loading.
+Datasets are accessible via Kaggle mirrors and are compatible with the HuggingFace `datasets` library.
 
-| Dataset                                                                                    | Description                                                                                                                      |
-| :----------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------- |
-| [FakeNewsNet](https://www.kaggle.com/datasets/mdepak/fakenewsnet)                             | PolitiFact + GossipCop articles with social engagement metadata. Unique because it includes sharing/comment signals.             |
-| [PolitiFact Fact Check](https://www.kaggle.com/datasets/rmisra/politifact-fact-check-dataset) | Fact-checking outlet covering political statements. Labels range across 6 levels.                                                |
-| [GossipCop](https://www.kaggle.com/datasets/akshaynarayananb/gossipcop)                       | Entertainment news fact-checker. Useful for capturing sensationalist writing patterns that differ from political misinformation. |
-| [LIAR](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset)                        | PolitiFact statements with 6-class labels, plus speaker metadata. Self-contained, benchmarked, rich enough for analysis.         |
-| [FEVER](https://fever.ai/dataset/fever.html)                                                  | Wikipedia-derived claims labeled. Requires evidence retrieval, so it's more of an NLI task than classification.                  |
+| Dataset                                                                                       | Description                                                                                       |
+| :-------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| [FakeNewsNet](https://www.kaggle.com/datasets/mdepak/fakenewsnet)                             | PolitiFact + GossipCop articles with social engagement metadata.                                  |
+| [PolitiFact Fact Check](https://www.kaggle.com/datasets/rmisra/politifact-fact-check-dataset) | Political statements with 6-level labels.                                                         |
+| [GossipCop](https://www.kaggle.com/datasets/akshaynarayananb/gossipcop)                       | Entertainment news fact-checker; useful for sensationalist writing patterns.                      |
+| [LIAR](https://www.kaggle.com/datasets/doanquanvietnamca/liar-dataset)                        | PolitiFact statements with 6-class labels and speaker metadata. Self-contained and benchmarked.   |
+| [FEVER](https://fever.ai/dataset/fever.html)                                                  | Wikipedia-derived claims; requires evidence retrieval — closer to NLI than classification.        |
+
+# Section 4: Preprocessing
+
+Each model requires different preprocessing; the raw text is never shared as-is across pipelines.
+
+## TF-IDF + SVM
+
+Input text (title + body on WELFake; statement + speaker + context on LIAR) is cleaned and normalised before vectorisation:
+
+1. Non-alphabetic characters stripped via regex
+2. Lowercased and tokenised
+3. English stopwords removed (NLTK)
+4. Porter stemming applied per token
+5. Processed tokens joined and passed to `TfidfVectorizer(max_features=10000, ngram_range=(1,2))`
+
+Bigrams are included to capture compound signals such as "breaking news" or "deep state" that carry little weight as unigrams.
+
+## BERT and FakeBERT
+
+No manual preprocessing — the BERT tokenizer handles normalisation, subword splitting, and special token insertion (`[CLS]`, `[SEP]`). Input fields are concatenated with a space separator before tokenisation:
+
+- **WELFake**: `title + " " + text`
+- **LIAR**: `statement + " " + speaker + " " + context`
+
+Sequences are truncated to 256 tokens and padded to uniform length per batch. Labels are mapped to integer indices (`fake → 0`, `real → 1`).
+
+# Section 5: Experimental Setup
+
+## Datasets
+
+| Dataset  | Size       | Split     | Label type                              |
+| :------- | :--------- | :-------- | :-------------------------------------- |
+| WELFake  | ~72k rows  | 80/20     | Binary (0 = fake, 1 = real)             |
+| LIAR     | ~12.8k rows | 80/20    | 6-class, binarised (pants-fire/false/barely-true → fake; half-true/mostly-true/true → real) |
+
+Splits are stratified on the label to preserve class distribution. No validation set is held out separately — early stopping is based on the test split (noted as a limitation in the Discussion).
+
+## Evaluation metrics
+
+- **Primary**: Macro F1 — averages F1 across both classes equally, penalising class-imbalanced predictions
+- **Secondary**: Accuracy, per-class recall (fake / real separately)
+- **Inference**: Wall-clock seconds and samples/sec on the test set (single run, no averaging)
+
+## Hardware
+
+All experiments run on Apple M4 (MPS backend) for transformer models; SVM training is CPU-only. Scripts auto-detect the available device at runtime.
+
+## Hyperparameters
+
+| Parameter     | TF-IDF + SVM        | BERT / FakeBERT                    |
+| :------------ | :------------------ | :--------------------------------- |
+| Epochs        | 10 (SGD passes)     | 10                                 |
+| Batch size    | N/A                 | 16                                 |
+| Learning rate | α = 1e-4 (SGD)      | 1e-5 (BERT layers), 1e-4 (CNN/head) |
+| Max seq len   | N/A                 | 256 tokens                         |
+| Warmup        | N/A                 | 10% of total steps                 |
 
 # Section 6: Architecture
 
-This project implements and compares different news text classification architectures of increasing complexity, each representing a distinct paradigm in NLP:
+Three architectures of increasing complexity, each representing a distinct NLP paradigm:
 
-## TF-IDF  and SVM
+## TF-IDF + SVM
 
-`src/TF-IDF_SVM_classifier.py` - a bag-of-words pipeline.
-Text is vectorized using TF-IDF (unigrams + bigrams) and classified with a linear SVM. Fast to train, fully interpretable via coefficient weights, and establishes the performance floor for comparison.
+`src/TF-IDF_SVM_classifier.py` — Text vectorised with TF-IDF (unigrams + bigrams), classified with a linear SVM. Fast, interpretable via coefficient weights, and establishes the performance baseline.
 
 ## BERT
 
-`src/BERT_classifier.py`  - Executing fine-tuning of a pre-trained transformer.
-BERT's bidirectional attention mechanism captures global context across the entire input, giving it a structural advantage over the SVM (and LSTMs generally) on longer, nuanced articles. Fine-tuned for 3 epochs using AdamW with a linear warmup schedule.
+`src/BERT_classifier.py` — Fine-tuned `bert-base-uncased`. Bidirectional attention captures global context across the full input, giving it a structural advantage on longer articles.
 
-| Component       | Detail                                       |
-| :-------------- | :------------------------------------------- |
-| Base model      | bert-base-uncased (109M parameters)          |
-| Max sequence    | 256 tokens                                   |
-| Optimiser       | AdamW, lr=1e-5, weight decay=0.01            |
-| Schedule        | Linear warmup (10%) + linear decay           |
-| Classifier head | Linear(768 num_classes), random init  |
+| Component       | Detail                               |
+| :-------------- | :----------------------------------- |
+| Base model      | bert-base-uncased (109M parameters)  |
+| Max sequence    | 256 tokens                           |
+| Optimiser       | AdamW, lr=1e-5, weight decay=0.01    |
+| Schedule        | Linear warmup (10%) + linear decay   |
+| Classifier head | Linear(768 → num_classes)            |
 
-## Fake-BERT
+## FakeBERT
 
-`src/Fake-BERT_classifier.py` - An extension of BERT that adds a CNN branch to the transformer encoder. Rather than relying on the `[CLS]` token representation, FakeBERT also passes the full token sequence through a CNN block (kernel size 4) that detects local 4-gram patterns — sensationalist phrases, emotional triggers, hedging language — which BERT's global attention may distribute across positions and underweight. The CNN output and the `[CLS]` embedding are concatenated before classification, giving the model both global context and local pattern signal.
- 
+`src/Fake-BERT_classifier.py` — Extends BERT with a parallel CNN branch. The full token sequence passes through a 4-gram CNN block to capture local patterns (sensationalist phrases, hedging language) that global attention may underweight. The CNN output and `[CLS]` embedding are concatenated before classification.
+
 ```
 BERT encoder
-    ├── [CLS] token  - global context vector  (768d)
-    └── all tokens   -  CNN(kernel=4) -> MaxPool -> local pattern vector  (128d)
-Concat([CLS], CNN_out)  -> Dropout  ->  Linear  ->  num_classes
+    ├── [CLS] token  → global context vector  (768d)
+    └── all tokens   → CNN(kernel=4) → MaxPool → local pattern vector  (128d)
+Concat([CLS], CNN_out) → Dropout → Linear → num_classes
 ```
- 
-| Component       | Detail                                              |
-| :-------------- | :-------------------------------------------------- |
-| Base model      | bert-base-uncased                                   |
-| CNN kernel      | size 4 (4-gram patterns), 128 filters               |
-| Optimiser       | AdamW with separate LRs: 1e-5 (BERT), 1e-4 (CNN + head) |
-| Schedule        | Linear warmup (10%) + linear decay                  |
-| Classifier head | Linear(768 + 128 num_classes)                     |
- 
+
+| Component       | Detail                                                   |
+| :-------------- | :------------------------------------------------------- |
+| Base model      | bert-base-uncased                                        |
+| CNN kernel      | size 4 (4-gram patterns), 128 filters                    |
+| Optimiser       | AdamW — 1e-5 (BERT), 1e-4 (CNN + head)                  |
+| Schedule        | Linear warmup (10%) + linear decay                       |
+| Classifier head | Linear(768 + 128 → num_classes)                          |
 
 # Section 7: Usage
 
 ## Installation
 
 ```
-git clone https://github.com/ilonae/Fake-News-Detection.git 
+git clone https://github.com/ilonae/Fake-News-Detection.git
 cd Fake-News-Detection
-python -m venv .venv && source .venv/bin/activate 
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
 ## Device support
 
-Scripts automatically detect and use either Apple MPS (M-series), CUDA, or CPU — no configuration needed
+Scripts automatically detect and use Apple MPS (M-series), CUDA, or CPU.
 
 ## Running the models
 
-Each model is self-contained. All scripts download the dataset automatically via `kagglehub` on first run.
+All scripts download the dataset automatically via `kagglehub` on first run.
 
 ```
 # TF-IDF + SVM
-python src/baseline_svm.py
-python src/baseline_svm.py --plot          # show plots interactively, optional arg
+python src/TF-IDF_SVM_classifier.py
+python src/TF-IDF_SVM_classifier.py --plot --epochs 10
 
-# BERT-base-uncased
-python src/baseline_bert.py
-python src/baseline_bert.py --epochs 4 --batch_size 8   # use epochs and batch_soze args
+# BERT
+python src/BERT_classifier.py
+python src/BERT_classifier.py --epochs 4 --batch_size 8
 
 # FakeBERT
 python src/Fake-BERT_classifier.py
@@ -131,21 +174,22 @@ All scripts write to `outputs/`:
 outputs/
 ├── ..._confusion_matrix.png
 ├── ..._training_curves.png
-└── bert_finetuned/          - saved weights and tokenizer
+└── bert_finetuned/          # saved weights and tokenizer
 ```
 
 # Section 8: Results
 
-All models evaluated on an 80/20 stratified train/test split of WELFake (72k articles).
-Primary metric is macro F1. Inference time measured on the test set.
+## WELFake
 
-| Model        | Accuracy | Macro F1 | Inference time in sec | Samples/sec |
-| :----------- | :------- | :------- | :--------------------- | ----------- |
-| TF-IDF + SVM | 96.14%   | 0.9613   | 127, 22                | 112,5       |
-| BERT.        | 99.56%   | 0.9956   | 301, 29                | 47,5        |
-| FakeBERT     | 99.49%   | 0.9949   | 305, 74                | 46,9        |
+80/20 stratified split of WELFake (72k articles). Primary metric: macro F1.
 
-## Confusion matrices
+| Model        | Accuracy | Macro F1 | Inference time (s) | Samples/sec |
+| :----------- | :------- | :------- | :----------------- | :---------- |
+| TF-IDF + SVM | 96.14%   | 0.9613   | 127.22             | 112.5       |
+| BERT         | 99.56%   | 0.9956   | 301.29             | 47.5        |
+| FakeBERT     | 99.49%   | 0.9949   | 305.74             | 46.9        |
+
+### Confusion matrices
 
 <p align="center">
   <img src="docs/svm_confusion_matrix.png" width="30%"/>
@@ -153,41 +197,101 @@ Primary metric is macro F1. Inference time measured on the test set.
   <img src="docs/fakebert_confusion_matrix.png" width="30%"/>
 </p>
 
-## Learning curves — BERT vs FakeBERT
+### Learning curves — BERT vs FakeBERT
 
 <p align="center">
   <img src="docs/bert_training_curves.png" width="48%"/>
   <img src="docs/fakebert_training_curves.png" width="48%"/>
 </p>
 
-## Discussion
+## LIAR
 
-All three models achieve high accuracy on WELFake, reflecting the dataset's relatively clean binary signal. Meaningful differentiation emerges on three axes:
+80/20 stratified split of LIAR (~10k statements, 6-class labels binarised to fake/real).
 
-**Complexity vs. accuracy trade-off** — TF-IDF + SVM achieves competitive F1 at a fraction of the compute cost, which is the expected finding from the literature. The transformer models offer no accuracy gain on this dataset but demonstrate substantially different convergence behavior (see learning curves).
+| Model        | Accuracy | Val Macro F1 | Fake recall | Real recall |
+| :----------- | :------- | :----------- | :---------- | :---------- |
+| TF-IDF + SVM | 60.9%    | ~0.59        | 46.1%       | 72.7%       |
+| BERT         | 63.6%    | ~0.63        | 52.1%       | 72.7%       |
+| FakeBERT     | 63.1%    | ~0.62        | 42.8%       | 79.1%       |
 
-**Convergence speed** — FakeBERT's parallel CNN branch accelerates early learning by capturing local n-gram patterns that BERT's attention mechanism
-requires more steps to weight appropriately. This advantage is most visible in epoch 1 of the training curves.
+### Confusion matrices
 
-**Inference cost** — SVM is orders of magnitude faster than transformer-based models. For production use cases, this trade-off is significant.
-As inference measurements show, the SVM plus TF-IDF will require 127,22 seconds, where FakeBERT at max will need 305,73 seconds. Similarly, the tradeoff in samples per second show: The SVM can process 112,5 samples, whereas BERT does 47,5 - and FakeBERT 46,9.
+<p align="center">
+  <img src="docs/svm_confusion_matrix_LIAR.png" width="30%"/>
+  <img src="docs/bert_confusion_matrix_LIAR.png" width="30%"/>
+  <img src="docs/fakebert_confusion_matrix_LIAR.png" width="30%"/>
+</p>
+
+### Learning curves — SVM vs BERT vs FakeBERT
+
+<p align="center">
+  <img src="docs/svm_training_curves_LIAR.png" width="32%"/>
+  <img src="docs/bert_training_curves_LIAR.png" width="32%"/>
+  <img src="docs/fakebert_training_curves_LIAR.png" width="32%"/>
+</p>
+
+# Section 9: Discussion
+
+## WELFake
+
+All three models achieve strong results on WELFake, reflecting its clean binary signal.
+
+**Complexity vs. accuracy** — SVM reaches 96.1% F1 at a fraction of the compute cost. Transformer models add no meaningful accuracy gain, but differ in convergence behaviour.
+
+**Convergence** — FakeBERT's CNN branch accelerates early learning by capturing local n-gram patterns before BERT's attention mechanism has fully adapted. The advantage is most visible in epoch 1.
+
+**Inference cost** — SVM processes 112.5 samples/sec vs. ~47 for BERT and FakeBERT, a 2.4× throughput advantage that matters significantly in production.
+
+## LIAR
+
+Performance drops substantially across all models relative to WELFake.
+
+**Dataset difficulty** — LIAR consists of short political statements (~18 tokens avg.) with no sensationalist formatting. The surface cues both TF-IDF and transformers exploit on WELFake are largely absent.
+
+**Label noise** — The 6-class scale is binarised at an arbitrary boundary; `barely-true` and `half-true` statements introduce genuine ambiguity that is not resolvable from text alone.
+
+**Fake recall collapse** — All three models default toward "real": BERT recovers 52% of fake samples, SVM 46%, FakeBERT 43%. FakeBERT's higher real recall (79.1%) comes at the direct cost of its fake recall — the CNN branch amplifies the majority-class bias on short inputs.
+
+**Overfitting vs. plateau** — Both transformer models reach train F1 ~1.0 by epoch 10 while val F1 stalls at ~0.62–0.63 from epoch 2; FakeBERT's val loss diverges more sharply after epoch 5. SVM is stable from epoch 3 but too weak to close the train/val F1 gap. Early stopping at epoch 2–3 is appropriate for both transformer models on LIAR.
+
+## Outlook
+
+Several directions follow naturally from these results:
+
+- **Class balancing** — Weighted cross-entropy or oversampling the fake class would directly address the fake recall gap seen on LIAR across all models.
+- **Early stopping** — Val F1 saturates at epoch 2 on LIAR; stopping there would reduce overfitting without architectural changes.
+- **Richer LIAR input** — LIAR provides speaker identity, party affiliation, and historical credibility counts. Incorporating these as additional features is a well-established improvement in the LIAR literature and likely the highest-value next step.
+- **Stronger baselines** — RoBERTa or DeBERTa as the encoder backbone would raise the ceiling on both datasets with minimal implementation overhead.
+- **Cross-dataset generalisation** — Training on WELFake and evaluating on LIAR (zero-shot transfer) would test whether the learned features generalise beyond article-length text, and is the natural follow-up to this cross-dataset comparison.
 
 # Section 10: Conclusion
 
+Three fake news detection approaches were implemented and evaluated on WELFake and LIAR.
+
+On WELFake, all models perform strongly — BERT and FakeBERT reach ~99.5% macro F1, while SVM achieves 96.1% at 2.4× the throughput. The BERT/FakeBERT gap is negligible, suggesting FakeBERT's CNN branch adds little when inputs are long and lexically rich.
+
+On LIAR, performance drops to ~60–64% across all models. The limiting factors are task structure (short statements, no surface cues) and label noise from binarisation — not model capacity. All three models show a systematic fake recall deficit, and both transformer models overfit from epoch 2 onward.
+
+Three takeaways:
+
+1. **Dataset structure dominates model choice** — SVM is competitive with BERT when signal is strong. Model complexity should follow data quality, not precede it.
+2. **LIAR requires targeted treatment** — early stopping, class balancing, and speaker metadata are higher-value interventions than swapping the encoder.
+3. **FakeBERT's CNN advantage is dataset-conditional** — beneficial in theory for short ambiguous inputs, but in practice amplifies majority-class bias on LIAR and offers no gain on WELFake.
+
 # Section 11: Contributing
 
-Contributions are welcome, especially around additional model architectures or dataset integrations.
+Contributions are welcome, especially around additional architectures or dataset integrations.
 
 1. Fork the repo
-2. Create feature branch: `git checkout -b feature/your-feature`
-3. Follow the structure: `logging` over `print`, plots saved to `outputs/`, `--args` flag for adjustment
-4. Submit a PR for that feature, with a brief description
+2. Create a feature branch: `git checkout -b feature/your-feature`
+3. Follow conventions: `logging` over `print`, plots to `outputs/`, CLI `--args` for hyperparameters
+4. Submit a PR with a brief description
 
 # Section 12: References
 
 - Devlin, J. et al. (2019). *BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding.* NAACL. https://arxiv.org/abs/1810.04805
 - Liu, Y. et al. (2019). *RoBERTa: A Robustly Optimized BERT Pretraining Approach.* https://arxiv.org/abs/1907.11692
-- Shu, K. et al. (2018). *FakeNewsNet: A Data Repository with News Content, Social Context and Spatialtemporal Information.* https://arxiv.org/abs/1809.01286
+- Shu, K. et al. (2018). *FakeNewsNet: A Data Repository with News Content, Social Context and Spatiotemporal Information.* https://arxiv.org/abs/1809.01286
 - Wang, W. Y. (2017). *"Liar, Liar Pants on Fire": A New Benchmark Dataset for Fake News Detection.* ACL. https://arxiv.org/abs/1705.00648
 - Thorne, J. et al. (2018). *FEVER: a Large-scale Dataset for Fact Extraction and VERification.* NAACL. https://arxiv.org/abs/1803.05355
 - Rohera, D. et al. (2022). *FakeBERT: Fake News Detection in Social Media with a BERT-based Deep Learning Approach.* Multimedia Tools and Applications. https://doi.org/10.1007/s11042-022-13183-y
