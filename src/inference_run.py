@@ -12,13 +12,14 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import wandb
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.model_selection import train_test_split
 from torch.utils.data import DataLoader, Dataset
 from transformers import BertForSequenceClassification, BertModel, BertTokenizerFast
+
+import wandb
 
 MODEL_NAME = "bert-base-uncased"
 KERNEL_SIZE = 4

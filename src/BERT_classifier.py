@@ -1,6 +1,9 @@
 import argparse
+import io
 import logging
 import os
+import urllib.request
+import zipfile
 
 import kagglehub
 import matplotlib.pyplot as plt
@@ -9,7 +12,6 @@ import pandas as pd
 import seaborn as sns
 import torch
 import torch.nn as nn
-from datasets import load_dataset
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 from torch.optim import AdamW
@@ -102,15 +104,37 @@ def main() -> None:
         df = df.dropna(subset=["title", "text", "label"]).reset_index(drop=True)
         df["text_input"] = df["title"].fillna("") + " " + df["text"].fillna("")
     else:
-        # LIAR from HuggingFace Hub — no Kaggle consent required
-        # label ints: 0=false, 1=half-true, 2=mostly-true, 3=true, 4=barely-true, 5=pants-fire
-        ds = load_dataset("liar")
-        df = pd.concat(
-            [pd.DataFrame(ds[split]) for split in ["train", "validation", "test"]],
-            ignore_index=True,
+        # LIAR — download directly from the original UCSB source (no account required)
+        liar_url = "https://www.cs.ucsb.edu/~william/data/liar_dataset.zip"
+        logging.info(f"Downloading LIAR dataset from {liar_url}...")
+        with urllib.request.urlopen(liar_url) as resp:
+            raw = resp.read()
+        col_names = [
+            "id",
+            "label_raw",
+            "statement",
+            "subject",
+            "speaker",
+            "job",
+            "state",
+            "affiliation",
+            "barely_true",
+            "false",
+            "half_true",
+            "mostly_true",
+            "pants_fire",
+            "context",
+        ]
+        frames = []
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            for fname in ["train.tsv", "test.tsv", "valid.tsv"]:
+                with z.open(fname) as f:
+                    frames.append(pd.read_csv(f, sep="\t", header=None, names=col_names))
+        df = pd.concat(frames, ignore_index=True)
+        fake_labels = {"false", "pants-fire", "barely-true"}
+        df["label"] = df["label_raw"].apply(
+            lambda x: "fake" if str(x).lower() in fake_labels else "real"
         )
-        fake_label_ids = {0, 4, 5}  # false, barely-true, pants-fire
-        df["label"] = df["label"].apply(lambda x: "fake" if x in fake_label_ids else "real")
         df = df.dropna(subset=["statement", "label"]).reset_index(drop=True)
         df["text_input"] = df["statement"].fillna("")
 
