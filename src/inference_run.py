@@ -12,6 +12,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import wandb
 from nltk.corpus import stopwords
 from nltk.stem.porter import PorterStemmer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -87,6 +88,8 @@ def main() -> None:
     parser.add_argument("--max_len", type=int, default=256)
     parser.add_argument("--num_filters", type=int, default=128)
     parser.add_argument("--runs", type=int, default=3, help="Number of timing runs to average")
+    parser.add_argument("--wandb_project", type=str, default="fake-news-detection")
+    parser.add_argument("--wandb_entity", type=str, default=None)
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -97,6 +100,19 @@ def main() -> None:
     os.makedirs("outputs", exist_ok=True)
     nltk.download("stopwords", quiet=True)
 
+    run = wandb.init(
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        name="inference-benchmark",
+        tags=["inference", "benchmark"],
+        config={
+            "batch_size": args.batch_size,
+            "max_len": args.max_len,
+            "num_filters": args.num_filters,
+            "runs": args.runs,
+        },
+    )
+
     if torch.backends.mps.is_available():
         device = torch.device("mps")
     elif torch.cuda.is_available():
@@ -104,6 +120,7 @@ def main() -> None:
     else:
         device = torch.device("cpu")
     logging.info(f"Device: {device}")
+    wandb.config.update({"device": str(device)})
 
     # =============================================================================
     # 1. DATA LOADING
@@ -226,6 +243,21 @@ def main() -> None:
 
     results.to_csv("outputs/inference_times.csv", index=False)
     logging.info("Saved: outputs/inference_times.csv")
+
+    # Log summary table and bar chart to W&B
+    wandb.log(
+        {
+            "inference/summary": wandb.Table(dataframe=results),
+            "inference/tfidf_svm_ms_per_sample": svm_result["ms_per_sample"],
+            "inference/bert_ms_per_sample": bert_result["ms_per_sample"],
+            "inference/fakebert_ms_per_sample": fakebert_result["ms_per_sample"],
+            "inference/tfidf_svm_samples_per_sec": svm_result["samples_per_sec"],
+            "inference/bert_samples_per_sec": bert_result["samples_per_sec"],
+            "inference/fakebert_samples_per_sec": fakebert_result["samples_per_sec"],
+        }
+    )
+
+    run.finish()
 
 
 if __name__ == "__main__":

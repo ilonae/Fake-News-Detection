@@ -9,6 +9,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 import torch.nn as nn
+import wandb
 from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, f1_score
 from sklearn.model_selection import train_test_split
 from torch.optim import AdamW
@@ -43,7 +44,15 @@ def main() -> None:
     parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--max_len", type=int, default=256)
     parser.add_argument("--lr", type=float, default=1e-5)
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility")
+    parser.add_argument("--dataset", type=str, default="welfake", choices=["welfake", "liar"])
+    parser.add_argument("--wandb_project", type=str, default="fake-news-detection")
+    parser.add_argument("--wandb_entity", type=str, default=None)
     args = parser.parse_args()
+
+    # Seed everything
+    torch.manual_seed(args.seed)
+    np.random.seed(args.seed)
 
     logging.basicConfig(
         filename="message.log",
@@ -52,6 +61,22 @@ def main() -> None:
     )
     os.makedirs("outputs", exist_ok=True)
 
+    run = wandb.init(
+        project=args.wandb_project,
+        entity=args.wandb_entity,
+        name=f"bert-{args.dataset}-seed{args.seed}",
+        tags=["bert", args.dataset, f"seed{args.seed}"],
+        config={
+            "model": MODEL_NAME,
+            "dataset": args.dataset,
+            "epochs": args.epochs,
+            "batch_size": args.batch_size,
+            "max_len": args.max_len,
+            "lr": args.lr,
+            "seed": args.seed,
+        },
+    )
+
     if torch.backends.mps.is_available():
         device = torch.device("mps")
     elif torch.cuda.is_available():
@@ -59,31 +84,63 @@ def main() -> None:
     else:
         device = torch.device("cpu")
     logging.info(f"Using device: {device}")
+    wandb.config.update({"device": str(device)})
 
     # =============================================================================
     # 1. DATA LOADING
     # =============================================================================
 
-    logging.info("Downloading WELFake dataset via kagglehub...")
-    path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
-    df = pd.read_csv(path + "/WELFake_Dataset.csv")
-    df = df.rename(columns={"Unnamed: 0": "id"})
-    df["label"] = df["label"].map({0: "fake", 1: "real"})
-    df = df.dropna(subset=["title", "text", "label"]).reset_index(drop=True)
+    logging.info(f"Downloading {args.dataset} dataset via kagglehub...")
+
+    if args.dataset == "welfake":
+        path = kagglehub.dataset_download("saurabhshahane/fake-news-classification")
+        df = pd.read_csv(path + "/WELFake_Dataset.csv")
+        df = df.rename(columns={"Unnamed: 0": "id"})
+        df["label"] = df["label"].map({0: "fake", 1: "real"})
+        df = df.dropna(subset=["title", "text", "label"]).reset_index(drop=True)
+        df["text_input"] = df["title"].fillna("") + " " + df["text"].fillna("")
+    else:
+        path = kagglehub.dataset_download("kesompochy/liar-dataset-for-fake-news-detection")
+        df_train = pd.read_csv(path + "/train.tsv", sep="\t", header=None)
+        df_test = pd.read_csv(path + "/test.tsv", sep="\t", header=None)
+        df_val = pd.read_csv(path + "/valid.tsv", sep="\t", header=None)
+        df = pd.concat([df_train, df_test, df_val], ignore_index=True)
+        df.columns = [
+            "id",
+            "label_raw",
+            "statement",
+            "subject",
+            "speaker",
+            "job",
+            "state",
+            "affiliation",
+            "barely_true",
+            "false",
+            "half_true",
+            "mostly_true",
+            "pants_fire",
+            "context",
+        ]
+        fake_labels = {"false", "pants-fire", "barely-true"}
+        df["label"] = df["label_raw"].apply(
+            lambda x: "fake" if str(x).lower() in fake_labels else "real"
+        )
+        df = df.dropna(subset=["statement", "label"]).reset_index(drop=True)
+        df["text_input"] = df["statement"].fillna("")
 
     logging.info(f"Dataset loaded: {df.shape[0]} rows, {df.shape[1]} columns")
     logging.info(f"Label distribution:\n{df['label'].value_counts().to_string()}")
+    wandb.log({"dataset/n_samples": df.shape[0]})
 
     label_idx = {"fake": 0, "real": 1}
     idx_label = {0: "fake", 1: "real"}
     df["label_idx"] = df["label"].map(label_idx)
-    df["text_input"] = df["title"].fillna("") + " " + df["text"].fillna("")
 
     X_train, X_test, y_train, y_test = train_test_split(
         df["text_input"].to_numpy(dtype=str),
         df["label_idx"].to_numpy(dtype=int),
         test_size=0.2,
-        random_state=42,
+        random_state=args.seed,
         stratify=df["label_idx"].to_numpy(dtype=int),
     )
     logging.info(f"Train: {len(X_train)}, Test: {len(X_test)}")
@@ -163,7 +220,10 @@ def main() -> None:
     # 5. TRAINING
     # =============================================================================
 
+    global_step = 0
+
     def run_epoch(loader, train: bool):
+        nonlocal global_step
         model.train() if train else model.eval()
         total_loss, all_preds, all_labels = 0.0, [], []
 
@@ -188,6 +248,8 @@ def main() -> None:
                     nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
                     scheduler.step()
+                    wandb.log({"train/step_loss": loss.item(), "train/step": global_step})
+                    global_step += 1
 
                 total_loss += loss.item() * len(labels)
                 preds = outputs.logits.argmax(dim=1).cpu().numpy()
@@ -211,6 +273,18 @@ def main() -> None:
         history["train_f1"].append(tr_f1)
         history["val_f1"].append(vl_f1)
 
+        wandb.log(
+            {
+                "epoch": epoch,
+                "train/loss": tr_loss,
+                "train/accuracy": tr_acc,
+                "train/macro_f1": tr_f1,
+                "val/loss": vl_loss,
+                "val/accuracy": vl_acc,
+                "val/macro_f1": vl_f1,
+            }
+        )
+
         logging.info(
             f"Epoch {epoch}/{args.epochs} | "
             f"Train loss {tr_loss:.4f} acc {tr_acc:.4f} F1 {tr_f1:.4f} | "
@@ -231,12 +305,15 @@ def main() -> None:
     _, _, _, final_preds, final_labels = run_epoch(test_loader, train=False)
     target_names = [idx_label[i] for i in range(len(label_idx))]
 
-    logging.info(f"Accuracy : {accuracy_score(final_labels, final_preds):.4f}")
-    logging.info(f"Macro F1 : {f1_score(final_labels, final_preds, average='macro'):.4f}")
+    final_acc = accuracy_score(final_labels, final_preds)
+    final_f1 = f1_score(final_labels, final_preds, average="macro")
+    logging.info(f"Accuracy : {final_acc:.4f}")
+    logging.info(f"Macro F1 : {final_f1:.4f}")
     logging.info(
         f"Classification report:\n"
         f"{classification_report(final_labels, final_preds, target_names=target_names)}"
     )
+    wandb.log({"test/accuracy": final_acc, "test/macro_f1": final_f1})
 
     fig, axes = plt.subplots(1, 2, figsize=(12, 4))
     epochs_range = range(1, args.epochs + 1)
@@ -255,8 +332,10 @@ def main() -> None:
 
     plt.suptitle("BERT — Training", fontsize=13)
     plt.tight_layout()
-    plt.savefig("outputs/bert_training_curves.png", dpi=150, bbox_inches="tight")
-    logging.info("Training curves saved to outputs/bert_training_curves.png")
+    curves_path = "outputs/bert_training_curves.png"
+    plt.savefig(curves_path, dpi=150, bbox_inches="tight")
+    wandb.log({"charts/training_curves": wandb.Image(curves_path)})
+    logging.info(f"Training curves saved to {curves_path}")
     if args.plot:
         plt.show()
     plt.close()
@@ -276,13 +355,16 @@ def main() -> None:
     ax.set_ylabel("True label")
     ax.set_xlabel("Predicted label")
     plt.tight_layout()
-    plt.savefig("outputs/bert_confusion_matrix.png", dpi=150, bbox_inches="tight")
-    logging.info("Confusion matrix saved to outputs/bert_confusion_matrix.png")
+    cm_path = "outputs/bert_confusion_matrix.png"
+    plt.savefig(cm_path, dpi=150, bbox_inches="tight")
+    wandb.log({"charts/confusion_matrix": wandb.Image(cm_path)})
+    logging.info(f"Confusion matrix saved to {cm_path}")
     if args.plot:
         plt.show()
     plt.close()
 
     logging.info("BERT run complete. Outputs written to outputs/")
+    run.finish()
 
 
 if __name__ == "__main__":
